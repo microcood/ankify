@@ -4,6 +4,7 @@ import shelve
 import requests
 import shutil
 import tempfile
+import argparse
 from urllib.request import urlopen
 from io import BytesIO
 from xml.etree import ElementTree
@@ -11,15 +12,15 @@ from os import makedirs
 
 NS = '{http://www.tei-c.org/ns/1.0}'
 DICT_API = 'https://freedict.org/freedict-database.xml'
-LANG_RELEASE = lambda x: "dictionary[@name='deu-{}']/release".format(x)
+LANG_RELEASE = lambda x, y: "dictionary[@name='{}-{}']/release".format(x, y)
 ENTRY = './/{}entry'.format(NS)
 ORTH = './{}form/{}orth'.format(NS, NS)
 QUOTE = './/{}quote'.format(NS)
 
-def create_dictionary(language):
+def create_dictionary(lang_in, lang_out):
     api = ElementTree.parse(urlopen(DICT_API))
     dict_url = None
-    for release in api.getroot().findall(LANG_RELEASE(language)):
+    for release in api.getroot().findall(LANG_RELEASE(lang_in, lang_out)):
         if release.attrib['URL'].endswith('src.tar.xz'):
             dict_url = release.attrib['URL']
             break
@@ -36,16 +37,18 @@ def create_dictionary(language):
             entries = xml_file.findall(ENTRY)
 
             makedirs('dicts', exist_ok=True)
-            d = shelve.open('dicts/deu-{}'.format(language))
+            d = shelve.open('dicts/{}-{}'.format(lang_in, lang_out))
             for entry in entries:
                     key = entry.find(ORTH).text
                     # remove everything in brackets
-                    key = re.sub(r'\(.*\)\s', '', key).lower()
-                    value = ', '.join(a.text for a in entry.findall(QUOTE))
+                    key = re.sub(r'\([^)]*\)*|\[[^]]*\]|\{[^}]*\}', '', key)
+                    value = ', '.join(a.text for a in entry.findall(QUOTE)[:3])
                     d[key] = value
             d.close()
 
-create_dictionary('rus')
-create_dictionary('eng')
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('langs', nargs='*', default=['deu', 'eng'])
+args = parser.parse_args()
+create_dictionary(*args.langs)
