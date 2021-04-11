@@ -1,26 +1,26 @@
 import tarfile
 import re
 import shelve
-import requests
 import shutil
 import tempfile
 import argparse
 from urllib.request import urlopen
-from io import BytesIO
 from xml.etree import ElementTree
 from os import makedirs
 
 NS = '{http://www.tei-c.org/ns/1.0}'
 DICT_API = 'https://freedict.org/freedict-database.xml'
-LANG_RELEASE = lambda x, y: "dictionary[@name='{}-{}']/release".format(x, y)
+LANG_RELEASE = "dictionary[@name='{}-{}']/release"
 ENTRY = './/{}entry'.format(NS)
 ORTH = './{}form/{}orth'.format(NS, NS)
 QUOTE = './/{}quote'.format(NS)
 
+
 def create_dictionary(lang_in, lang_out):
+    lang_name = LANG_RELEASE.format(lang_in, lang_out)
     api = ElementTree.parse(urlopen(DICT_API))
     dict_url = None
-    for release in api.getroot().findall(LANG_RELEASE(lang_in, lang_out)):
+    for release in api.getroot().findall(lang_name):
         if release.attrib['URL'].endswith('src.tar.xz'):
             dict_url = release.attrib['URL']
             break
@@ -39,13 +39,12 @@ def create_dictionary(lang_in, lang_out):
             makedirs('dicts', exist_ok=True)
             d = shelve.open('dicts/{}-{}'.format(lang_in, lang_out))
             for entry in entries:
-                    key = entry.find(ORTH).text
-                    # remove everything in brackets
-                    key = re.sub(r'\([^)]*\)*|\[[^]]*\]|\{[^}]*\}', '', key)
-                    value = ', '.join(a.text for a in entry.findall(QUOTE)[:3])
-                    d[key] = value
+                key = entry.find(ORTH).text
+                # remove everything in brackets
+                key = re.sub(r'\([^)]*\)*|\[[^]]*\]|\{[^}]*\}', '', key)
+                value = ', '.join(a.text for a in entry.findall(QUOTE)[:3])
+                d[key] = value
             d.close()
-
 
 
 parser = argparse.ArgumentParser()

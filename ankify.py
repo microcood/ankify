@@ -1,7 +1,6 @@
 import spacy
 import os
 import re
-import sys
 import shelve
 import string
 import argparse
@@ -22,19 +21,22 @@ long_vocab = {}
 
 def write_csv(name, pairs):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    with open(OUTPUT_DIR + name, 'w', newline = '') as csvfile:
+    with open(OUTPUT_DIR + name, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter='\t')
         for key in pairs.keys():
             writer.writerow([key, pairs[key]])
 
+
 def count(dictionary):
     return len(dictionary.keys())
 
+
 def create_long_vocab():
     for key in vocab.keys():
-        l = key.split()
-        if len(l) > 1:
+        ls = key.split()
+        if len(ls) > 1:
             long_vocab[key] = vocab[key]
+
 
 def strip_punct(str):
     return str.translate(str.maketrans('', '', string.punctuation)).strip()
@@ -46,19 +48,21 @@ def create_top1k_dict():
             word = word.strip()
             top1k[word] = vocab.get(word)
 
+
 def translate_file(path, name):
     pairs = {}
     ff = open(path + name)
     data = ff.read()
     data = re.sub(r'\n|\d+|-', ' ', data)
     doc = nlp(data)
+    pos_list = ['PUNCT', 'X', 'SPACE']
     unique = 0
     for token in doc:
         tt = token.text
         tl = token.lemma_
         if IGNORE_TOP_1000 and (top1k.get(tt) or top1k.get(tl)):
             continue
-        if token.pos_ not in ['PUNCT', 'X', 'SPACE'] and not word_list.get(token.text):
+        if token.pos_ not in pos_list and (not word_list.get(token.text)):
 
             unique += 1
             word_list[token.text] = True
@@ -77,7 +81,11 @@ def translate_file(path, name):
 
     csv_name = name.replace(name.split('.')[-1], 'csv')
     write_csv(csv_name, pairs)
-    print(name , '{} out of {}, {:.2%}'.format(count(pairs), unique, count(pairs)/ unique ))
+    print(name, '{} out of {}, {:.2%}'.format(
+        count(pairs),
+        unique,
+        count(pairs) / unique))
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', default='./input/')
